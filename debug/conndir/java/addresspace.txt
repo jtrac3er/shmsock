@@ -1,0 +1,10 @@
+
+In java Applikaiton ohne payload, einfach so
+
+(gdb) p mmap(0, 0x100000, 0x7 ,0x21,-1,0)
+$13 = (void *) 0x7ffff612e000
+(gdb) p 0x7ffff612e000
+$14 = 140737321820160						// addresse die frei ist
+(gdb) 
+
+

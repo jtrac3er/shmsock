@@ -1,0 +1,110 @@
+
+PATH_MALLOC = custom-malloc
+PATH_LL = linked-list
+
+INC_MALLOC = $(PATH_MALLOC)
+INC_LL = $(PATH_LL)/include
+
+ALL_INC = -I$(INC_MALLOC) -I$(INC_LL) ${ADDITIONAL_INC}
+ALL_OBJ := obj/malloc.o obj/ll.o obj/llist.o obj/socket.o obj/util.o obj/event.o
+
+CFLAGS := -fPIC
+
+# man muss die Variable CC exportieren um GCC zu verwenden
+GCC := ${CC}
+#GCC := gcc
+
+.PHONY := all
+
+all : lib/libshmsock-client.a lib/libshmsock-server.a \
+		lib/libshmsock-client.so lib/libshmsock-server.so
+
+# Die malloc implementation
+obj/malloc.o : $(PATH_MALLOC)/malloc.c $(PATH_MALLOC)/_malloc.h
+	$(GCC) -g -c -o $@  $< -lpthread $(ALL_INC) $(CFLAGS) ${COMP_MODE}
+
+# die ll implementation, die von list gebraucht wird
+obj/ll.o : $(PATH_LL)/src/ll.c $(PATH_LL)/include/ll.h
+	$(GCC) -g -c -o $@  $< -lpthread $(ALL_INC) $(CFLAGS) ${COMP_MODE}
+
+# die normale llist implementation wrapper
+obj/llist.o : list.c list.h
+	$(GCC) -g -c -o $@  $< -lpthread $(ALL_INC) $(CFLAGS) ${COMP_MODE}
+	
+# Die socket implementation
+obj/util.o : util.c util.h
+	$(GCC) -g -c -o $@  $< $(ALL_INC) $(CFLAGS) ${COMP_MODE}
+	
+# Die socket implementation
+obj/event.o : event.c event.h
+	$(GCC) -g -c -o $@  $< $(ALL_INC) $(CFLAGS) ${COMP_MODE}
+	 
+# Die socket implementation
+obj/socket.o : socket.c socket.h
+	$(GCC) -g -c -o $@  $< $(ALL_INC) $(CFLAGS) ${COMP_MODE}
+
+
+libshmsock.a : $(ALL_OBJ)
+	ar rcs libshmsock.a $^ 	
+	
+libshmsock.so : $(ALL_OBJ)
+	$(GCC) -o libshmsock.so $^ -shared -g $(CFLAGS)  ${COMP_MODE}
+
+
+lib/libshmsock-client.a : export COMP_MODE=${ADDITIONAL_MODE} 
+lib/libshmsock-client.a : 
+	make -B libshmsock.a
+	mv libshmsock.a lib/libshmsock-client.a 
+
+lib/libshmsock-server.a : export COMP_MODE=${ADDITIONAL_MODE} -DMODE_SERVER
+lib/libshmsock-server.a : 
+	make -B libshmsock.a
+	mv libshmsock.a lib/libshmsock-server.a 
+
+
+lib/libshmsock-client.so : export COMP_MODE=${ADDITIONAL_MODE} -DMODE_PRELOAD
+lib/libshmsock-client.so : 
+	make -B libshmsock.so
+	mv libshmsock.so lib/libshmsock-client.so
+
+lib/libshmsock-server.so : export COMP_MODE=${ADDITIONAL_MODE} -DMODE_SERVER -DMODE_PRELOAD -DMODE_FIXED_REGION
+lib/libshmsock-server.so : 
+	make -B libshmsock.so
+	mv libshmsock.so lib/libshmsock-server.so
+
+# bringt nichts, da es mit musl $(GCC) compiled werden muss
+
+lib/enclave/libshmsock-client.a : export COMP_MODE=${ADDITIONAL_MODE} -DENCLAVE
+lib/enclave/libshmsock-client.a : 
+	make -B libshmsock.a
+	mv libshmsock.a lib/enclave/libshmsock-client.a 
+	
+lib/enclave/libshmsock-server.a : export COMP_MODE=${ADDITIONAL_MODE} -DENCLAVE -DMODE_SERVER
+lib/enclave/libshmsock-server.a : 
+	make -B libshmsock.a
+	mv libshmsock.a lib/enclave/libshmsock-server.a 
+	
+peprocess : export COMP_MODE=${ADDITIONAL_MODE} -E
+peprocess : $(ALL_OBJ)
+	echo "Alle Objektdateien preprocessed"
+	
+malloctest: 
+	make -C test malloctest
+
+listtest:
+	make -C test listtest
+	 
+sockettest: 
+	make -C test -B client
+	make -C test -B server
+
+clean :
+	rm -f obj/*
+	rm -f lib/*.a
+	rm -f lib/*.so
+	rm -f lib/enclave/*.a
+	rm -f lib/enclave/*.so
+	
+	
+	
+	
